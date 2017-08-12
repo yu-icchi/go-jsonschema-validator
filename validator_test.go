@@ -6,16 +6,16 @@ import (
 )
 
 type Sample struct {
-	Name string `json:"name" jsonschema:"maxLength:20"`
+	Name string `json:"name" jsonschema:"maxLength:5,pattern:^[0-8]+$"`
 }
 
-func TestNewValidator(t *testing.T) {
+func Test_Validator_String(t *testing.T) {
 	sample := &Sample{
-		Name: "my name",
+		Name: "1234567890",
 	}
 
 	validator := NewValidator()
-	ret, err := validator.Validate(sample)
-	assert.True(t, ret.Valid())
-	assert.NoError(t, err)
+	err := validator.Validate(sample)
+	assert.Error(t, err)
+	assert.Equal(t, "maxLength:5(10)pattern:^[0-8]+$(1234567890)", err.Error())
 }
