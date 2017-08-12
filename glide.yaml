@@ -1,0 +1,5 @@
+package: github.com/yu-ichiko/go-jsonschema-validator
+import:
+- package: github.com/stretchr/testify
+  subpackages:
+  - assert

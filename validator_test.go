@@ -1,6 +1,7 @@
 package jsonschema
 
 import (
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
@@ -15,10 +16,6 @@ func TestNewValidator(t *testing.T) {
 
 	validator := NewValidator()
 	ret, err := validator.Validate(sample)
-	if ret.Valid() != true {
-		t.Error("invalid")
-	}
-	if err != nil {
-		t.Error("err")
-	}
+	assert.True(t, ret.Valid())
+	assert.NoError(t, err)
 }

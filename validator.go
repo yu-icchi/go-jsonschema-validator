@@ -264,18 +264,18 @@ func (v *Validator) validate(value reflect.Value, fieldName string, tag *tag) *V
 }
 
 func (v *Validator) validateString(str, fieldName string, tag *tag) *ValidationResult {
-	err := newValidationResult()
+	ret := newValidationResult()
 	if tag != nil && (tag.minLength != nil || tag.maxLength != nil) {
 		l := int64(utf8.RuneCountInString(str))
 		if tag.minLength != nil && l < *tag.minLength {
-			err.add(&ValidationResult{
+			ret.add(&ValidationResult{
 				Message: "minLength",
 				Name:    fieldName,
 				Meta:    tag.meta,
 			})
 		}
 		if tag.maxLength != nil && l > *tag.maxLength {
-			err.add(&ValidationResult{
+			ret.add(&ValidationResult{
 				Message: "maxLength",
 				Name:    fieldName,
 				Meta:    tag.meta,
@@ -283,7 +283,7 @@ func (v *Validator) validateString(str, fieldName string, tag *tag) *ValidationR
 		}
 	}
 	if tag != nil && tag.pattern != nil && !tag.pattern.MatchString(str) {
-		err.add(&ValidationResult{
+		ret.add(&ValidationResult{
 			Message: "pattern",
 			Name:    fieldName,
 			Meta:    tag.meta,
@@ -291,7 +291,7 @@ func (v *Validator) validateString(str, fieldName string, tag *tag) *ValidationR
 	}
 	if tag != nil && tag.format != nil {
 		if e := v.execFormat(*tag.format, str); e != nil {
-			err.add(&ValidationResult{
+			ret.add(&ValidationResult{
 				Message: "format",
 				Name:    fieldName,
 				Meta:    tag.meta,
@@ -299,27 +299,27 @@ func (v *Validator) validateString(str, fieldName string, tag *tag) *ValidationR
 		}
 	}
 	if tag != nil && len(tag.enum) > 0 && !contains(tag.enum, str) {
-		err.add(&ValidationResult{
+		ret.add(&ValidationResult{
 			Message: "enum",
 			Name:    fieldName,
 			Meta:    tag.meta,
 		})
 	}
-	return err
+	return ret
 }
 
 func (v *Validator) validateNumber(num *big.Float, fieldName string, tag *tag) *ValidationResult {
-	err := newValidationResult()
+	ret := newValidationResult()
 	if tag != nil && tag.minimum != nil {
 		if tag.exclusiveMinimumD4 != nil && *tag.exclusiveMinimumD4 && num.Cmp(tag.minimum) <= 0 {
-			err.add(&ValidationResult{
+			ret.add(&ValidationResult{
 				Message: "minimum exclusiveMinimum",
 				Name:    fieldName,
 				Meta:    tag.meta,
 			})
 		}
 		if num.Cmp(tag.minimum) < 0 {
-			err.add(&ValidationResult{
+			ret.add(&ValidationResult{
 				Message: "minimum",
 				Name:    fieldName,
 				Meta:    tag.meta,
@@ -327,7 +327,7 @@ func (v *Validator) validateNumber(num *big.Float, fieldName string, tag *tag) *
 		}
 	}
 	if tag != nil && tag.exclusiveMinimumD6 != nil && num.Cmp(tag.exclusiveMinimumD6) <= 0 {
-		err.add(&ValidationResult{
+		ret.add(&ValidationResult{
 			Message: "exclusiveMinimum",
 			Name:    fieldName,
 			Meta:    tag.meta,
@@ -335,14 +335,14 @@ func (v *Validator) validateNumber(num *big.Float, fieldName string, tag *tag) *
 	}
 	if tag != nil && tag.maximum != nil {
 		if tag.exclusiveMaximumD4 != nil && *tag.exclusiveMaximumD4 && num.Cmp(tag.maximum) >= 0 {
-			err.add(&ValidationResult{
+			ret.add(&ValidationResult{
 				Message: "maximum exclusiveMaximum",
 				Name:    fieldName,
 				Meta:    tag.meta,
 			})
 		}
 		if num.Cmp(tag.maximum) > 0 {
-			err.add(&ValidationResult{
+			ret.add(&ValidationResult{
 				Message: "maximum",
 				Name:    fieldName,
 				Meta:    tag.meta,
@@ -350,7 +350,7 @@ func (v *Validator) validateNumber(num *big.Float, fieldName string, tag *tag) *
 		}
 	}
 	if tag != nil && tag.exclusiveMaximumD6 != nil && num.Cmp(tag.exclusiveMaximumD6) >= 0 {
-		err.add(&ValidationResult{
+		ret.add(&ValidationResult{
 			Message: "exclusiveMaximum",
 			Name:    fieldName,
 			Meta:    tag.meta,
@@ -358,7 +358,7 @@ func (v *Validator) validateNumber(num *big.Float, fieldName string, tag *tag) *
 	}
 	if tag != nil && tag.multipleOf != nil {
 		if m := new(big.Float).Quo(num, tag.multipleOf); !m.IsInt() {
-			err.add(&ValidationResult{
+			ret.add(&ValidationResult{
 				Message: "multipleOf",
 				Name:    fieldName,
 				Meta:    tag.meta,
@@ -367,12 +367,12 @@ func (v *Validator) validateNumber(num *big.Float, fieldName string, tag *tag) *
 	}
 	if tag != nil && len(tag.enum) > 0 {
 		if !contains(tag.enum, num.String()) {
-			err.add(&ValidationResult{
+			ret.add(&ValidationResult{
 				Message: "enum",
 				Name:    fieldName,
 				Meta:    tag.meta,
 			})
 		}
 	}
-	return err
+	return ret
 }
