@@ -2,41 +2,54 @@ package jsonschema
 
 import (
 	"bytes"
+	"errors"
 	"math/big"
 	"regexp"
 	"strconv"
 )
 
 var (
+	// ErrTagSyntax -
+	ErrTagSyntax = errors.New("tag syntax error")
+)
+
+var (
 	preMinimum        = []byte("mini")
 	preMaximum        = []byte("maxi")
+	mum               = []byte("mum")
 	preExclusive      = []byte("excl")
 	exclusiveMaximum  = []byte("usiveMaximum")
 	exclusiveMinimum  = []byte("usiveMinimum")
 	preMultipleOf     = []byte("mult")
+	multipleOf        = []byte("ipleOf")
 	preMinLength      = []byte("minL")
 	preMaxLength      = []byte("maxL")
+	length            = []byte("ength")
 	prePattern        = []byte("patt")
+	pattern           = []byte("ern")
 	patternProperties = []byte("roperties:")
 	preFormat         = []byte("form")
+	format            = []byte("at")
 	preMinItems       = []byte("minI")
 	preMaxItems       = []byte("maxI")
+	items             = []byte("tems")
 	preUniqueItems    = []byte("uniq")
+	uniqueItems       = []byte("ueItems")
 	preMinProperties  = []byte("minP")
 	preMaxProperties  = []byte("maxP")
+	properties        = []byte("roperties")
 	preRequired       = []byte("requ")
+	required          = []byte("ired")
 	preEnum           = []byte("enum")
 )
 
-func newTag(meta string) *tag {
+func newTag() *tag {
 	return &tag{
-		meta: meta,
 		enum: []string{},
 	}
 }
 
 type tag struct {
-	meta string
 	// number validators
 	minimum            *big.Float
 	maximum            *big.Float
@@ -70,17 +83,31 @@ func (t *tag) read(r *reader) error {
 	prefix := r.ReadBytes(4)
 	switch {
 	case bytes.Equal(prefix[:], preMinimum):
+		prefix = r.ReadBytes(3)
+		if !bytes.Equal(prefix[:], mum) {
+			return ErrTagSyntax
+		}
 		r.SkipDelimiter()
 		value := r.ReadSeparator()
-		min, _ := strconv.ParseFloat(value, 64)
+		min, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return ErrTagSyntax
+		}
 		t.minimum = big.NewFloat(min)
 		if !r.IsEOF() {
 			t.read(r)
 		}
 	case bytes.Equal(prefix[:], preMaximum):
+		prefix = r.ReadBytes(3)
+		if !bytes.Equal(prefix[:], mum) {
+			return ErrTagSyntax
+		}
 		r.SkipDelimiter()
 		value := r.ReadSeparator()
-		max, _ := strconv.ParseFloat(value, 64)
+		max, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return ErrTagSyntax
+		}
 		t.maximum = big.NewFloat(max)
 		if !r.IsEOF() {
 			t.read(r)
@@ -94,7 +121,10 @@ func (t *tag) read(r *reader) error {
 				exclusive, _ := strconv.ParseBool(value)
 				t.exclusiveMinimumD4 = &exclusive
 			} else {
-				exclusive, _ := strconv.ParseFloat(value, 64)
+				exclusive, err := strconv.ParseFloat(value, 64)
+				if err != nil {
+					return ErrTagSyntax
+				}
 				t.exclusiveMinimumD6 = big.NewFloat(exclusive)
 			}
 		}
@@ -103,7 +133,10 @@ func (t *tag) read(r *reader) error {
 				exclusive, _ := strconv.ParseBool(value)
 				t.exclusiveMaximumD4 = &exclusive
 			} else {
-				exclusive, _ := strconv.ParseFloat(value, 64)
+				exclusive, err := strconv.ParseFloat(value, 64)
+				if err != nil {
+					return ErrTagSyntax
+				}
 				t.exclusiveMaximumD6 = big.NewFloat(exclusive)
 			}
 		}
@@ -111,33 +144,59 @@ func (t *tag) read(r *reader) error {
 			t.read(r)
 		}
 	case bytes.Equal(prefix[:], preMultipleOf):
+		prefix = r.ReadBytes(6)
+		if !bytes.Equal(prefix[:], multipleOf) {
+			return ErrTagSyntax
+		}
 		r.SkipDelimiter()
 		value := r.ReadSeparator()
-		num, _ := strconv.ParseFloat(value, 64)
+		num, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return ErrTagSyntax
+		}
 		t.multipleOf = big.NewFloat(num)
 		if !r.IsEOF() {
 			t.read(r)
 		}
 	case bytes.Equal(prefix[:], preMinLength):
+		prefix = r.ReadBytes(5)
+		if !bytes.Equal(prefix[:], length) {
+			return ErrTagSyntax
+		}
 		r.SkipDelimiter()
 		value := r.ReadSeparator()
-		num, _ := strconv.ParseInt(value, 10, 64)
+		num, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return ErrTagSyntax
+		}
 		t.minLength = &num
 		if !r.IsEOF() {
 			t.read(r)
 		}
 	case bytes.Equal(prefix[:], preMaxLength):
+		prefix = r.ReadBytes(5)
+		if !bytes.Equal(prefix[:], length) {
+			return ErrTagSyntax
+		}
 		r.SkipDelimiter()
 		value := r.ReadSeparator()
-		num, _ := strconv.ParseInt(value, 10, 64)
+		num, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return ErrTagSyntax
+		}
 		t.maxLength = &num
 		if !r.IsEOF() {
 			t.read(r)
 		}
 	case bytes.Equal(prefix[:], prePattern):
 		prefix = r.ReadBytes(3)
-		// todo...ern check
-		hasSep, _ := r.ReadByte()
+		if !bytes.Equal(prefix[:], pattern) {
+			return ErrTagSyntax
+		}
+		hasSep, err := r.ReadByte()
+		if err != nil {
+			return ErrTagSyntax
+		}
 		if hasSep == byte(':') || hasSep == byte('=') {
 			t.pattern = regexp.MustCompile(r.ReadSeparator())
 		} else {
@@ -150,6 +209,10 @@ func (t *tag) read(r *reader) error {
 			t.read(r)
 		}
 	case bytes.Equal(prefix[:], preFormat):
+		prefix = r.ReadBytes(2)
+		if !bytes.Equal(prefix[:], format) {
+			return ErrTagSyntax
+		}
 		r.SkipDelimiter()
 		value := r.ReadSeparator()
 		t.format = &value
@@ -157,50 +220,92 @@ func (t *tag) read(r *reader) error {
 			t.read(r)
 		}
 	case bytes.Equal(prefix[:], preMinItems):
+		prefix = r.ReadBytes(4)
+		if !bytes.Equal(prefix[:], items) {
+			return ErrTagSyntax
+		}
 		r.SkipDelimiter()
 		value := r.ReadSeparator()
-		num, _ := strconv.ParseInt(value, 10, 64)
+		num, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return ErrTagSyntax
+		}
 		t.minItems = &num
 		if !r.IsEOF() {
 			t.read(r)
 		}
 	case bytes.Equal(prefix[:], preMaxItems):
+		prefix = r.ReadBytes(4)
+		if !bytes.Equal(prefix[:], items) {
+			return ErrTagSyntax
+		}
 		r.SkipDelimiter()
 		value := r.ReadSeparator()
-		num, _ := strconv.ParseInt(value, 10, 64)
+		num, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return ErrTagSyntax
+		}
 		t.maxItems = &num
 		if !r.IsEOF() {
 			t.read(r)
 		}
 	case bytes.Equal(prefix[:], preUniqueItems):
+		prefix = r.ReadBytes(7)
+		if !bytes.Equal(prefix[:], uniqueItems) {
+			return ErrTagSyntax
+		}
 		r.SkipDelimiter()
 		value := r.ReadSeparator()
-		uniq, _ := strconv.ParseBool(value)
+		uniq, err := strconv.ParseBool(value)
+		if err != nil {
+			return ErrTagSyntax
+		}
 		t.uniqueItems = &uniq
 		if !r.IsEOF() {
 			t.read(r)
 		}
 	case bytes.Equal(prefix[:], preMinProperties):
+		prefix = r.ReadBytes(9)
+		if !bytes.Equal(prefix[:], properties) {
+			return ErrTagSyntax
+		}
 		r.SkipDelimiter()
 		value := r.ReadSeparator()
-		num, _ := strconv.ParseInt(value, 10, 64)
+		num, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return ErrTagSyntax
+		}
 		t.minProperties = &num
 		if !r.IsEOF() {
 			t.read(r)
 		}
 	case bytes.Equal(prefix[:], preMaxProperties):
+		prefix = r.ReadBytes(9)
+		if !bytes.Equal(prefix[:], properties) {
+			return ErrTagSyntax
+		}
 		r.SkipDelimiter()
 		value := r.ReadSeparator()
-		num, _ := strconv.ParseInt(value, 10, 64)
+		num, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return ErrTagSyntax
+		}
 		t.maxProperties = &num
 		if !r.IsEOF() {
 			t.read(r)
 		}
 	case bytes.Equal(prefix[:], preRequired):
+		prefix = r.ReadBytes(4)
+		if !bytes.Equal(prefix[:], required) {
+			return ErrTagSyntax
+		}
 		r.SkipDelimiter()
 		buf := []byte{}
 		for {
-			b, _ := r.ReadByte()
+			b, err := r.ReadByte()
+			if err != nil {
+				return ErrTagSyntax
+			}
 			if b == byte('[') {
 				continue
 			}
@@ -223,7 +328,10 @@ func (t *tag) read(r *reader) error {
 		r.SkipDelimiter()
 		buf := []byte{}
 		for {
-			b, _ := r.ReadByte()
+			b, err := r.ReadByte()
+			if err != nil {
+				return ErrTagSyntax
+			}
 			if b == byte('[') {
 				continue
 			}

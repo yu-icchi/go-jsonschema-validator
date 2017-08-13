@@ -15,12 +15,14 @@ const (
 	tagName = "jsonschema"
 )
 
+// ValidationError -
 type ValidationError struct {
 	Name    string
 	Message string
 	Causes  []*ValidationError
 }
 
+// Error -
 func (v *ValidationError) Error() string {
 	buf := bytes.NewBufferString(v.Message)
 	write(buf, v)
@@ -124,14 +126,17 @@ func (v *Validator) Validate(data interface{}) error {
 			continue
 		}
 
-		tag := v.parseTag(tagValue)
+		tag, err := v.parseTag(tagValue)
+		if err != nil {
+			return err
+		}
 
 		value := rv.Field(i)
 		if value.Kind() == reflect.Ptr && !value.IsNil() {
 			value = value.Elem()
 		}
 
-		err := v.validate(value, name, tag)
+		err = v.validate(value, name, tag)
 		ret, ok := err.(*ValidationError)
 		if ok && ret != nil && !ret.isEmpty() {
 			result.add(ret)
@@ -141,11 +146,11 @@ func (v *Validator) Validate(data interface{}) error {
 	return result
 }
 
-func (v *Validator) parseTag(meta string) *tag {
-	tag := newTag(meta)
+func (v *Validator) parseTag(meta string) (*tag, error) {
+	tag := newTag()
 	r := newReader([]byte(meta))
-	tag.read(r)
-	return tag
+	err := tag.read(r)
+	return tag, err
 }
 
 func (v *Validator) validate(value reflect.Value, fieldName string, tag *tag) error {
