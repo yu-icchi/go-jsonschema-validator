@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"regexp"
 	"strconv"
+	"strings"
 )
 
 var (
@@ -311,11 +312,13 @@ func (t *tag) read(r *reader) error {
 				continue
 			}
 			if b == byte(']') {
-				t.required = append(t.required, string(buf))
+				v := strings.TrimSpace(string(buf))
+				t.required = append(t.required, v)
 				break
 			}
 			if b == byte(',') {
-				t.required = append(t.required, string(buf))
+				v := strings.TrimSpace(string(buf))
+				t.required = append(t.required, v)
 				buf = []byte{}
 				continue
 			}

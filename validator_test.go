@@ -349,3 +349,123 @@ func TestValidator_Validate_Array_UniqueItems(t *testing.T) {
 	err = validator.Validate(s)
 	assert.NoError(t, err)
 }
+
+func TestValidator_Validate_Map_MaxProperties(t *testing.T) {
+	type Sample struct {
+		Map map[string]int `jsonschema:"maxProperties:2"`
+	}
+
+	validator := NewValidator()
+
+	// invalid
+	s := Sample{
+		Map: map[string]int{
+			"a": 1,
+			"b": 2,
+			"c": 3,
+		},
+	}
+	err := validator.Validate(s)
+	assert.Error(t, err)
+	assert.Equal(t, "maxProperties:2", err.Error())
+
+	// valid
+	s = Sample{
+		Map: map[string]int{
+			"a": 1,
+			"b": 2,
+		},
+	}
+	err = validator.Validate(s)
+	assert.NoError(t, err)
+}
+
+func TestValidator_Validate_Map_MinProperties(t *testing.T) {
+	type Sample struct {
+		Map map[string]int `jsonschema:"minProperties:2"`
+	}
+
+	validator := NewValidator()
+
+	// invalid
+	s := Sample{
+		Map: map[string]int{
+			"a": 1,
+		},
+	}
+	err := validator.Validate(s)
+	assert.Error(t, err)
+	assert.Equal(t, "minProperties:2", err.Error())
+
+	// valid
+	s = Sample{
+		Map: map[string]int{
+			"a": 1,
+			"b": 2,
+		},
+	}
+	err = validator.Validate(s)
+	assert.NoError(t, err)
+}
+
+func TestValidator_Validate_Map_Required(t *testing.T) {
+	type Sample struct {
+		Map map[string]int `jsonschema:"required:[a,b,c]"`
+	}
+
+	validator := NewValidator()
+
+	// invalid
+	s := Sample{
+		Map: map[string]int{
+			"a": 1,
+			"b": 2,
+			"d": 3,
+		},
+	}
+	err := validator.Validate(s)
+	assert.Error(t, err)
+	assert.Equal(t, "required", err.Error())
+
+	// valid
+	s = Sample{
+		Map: map[string]int{
+			"a": 1,
+			"b": 2,
+			"c": 3,
+		},
+	}
+	err = validator.Validate(s)
+	assert.NoError(t, err)
+}
+
+func TestValidator_Validate_Map_PatternProperties(t *testing.T) {
+	type Sample struct {
+		Map map[string]int `jsonschema:"patternProperties:^id-+"`
+	}
+
+	validator := NewValidator()
+
+	// invalid
+	s := Sample{
+		Map: map[string]int{
+			"id-a": 1,
+			"id-b": 2,
+			"d":    3,
+		},
+	}
+	err := validator.Validate(s)
+	assert.Error(t, err)
+	assert.Equal(t, "patternProperties:^id-+", err.Error())
+
+	// valid
+	s = Sample{
+		Map: map[string]int{
+			"id-a": 1,
+			"id-b": 2,
+			"id-c": 3,
+		},
+	}
+	err = validator.Validate(s)
+	assert.NoError(t, err)
+}

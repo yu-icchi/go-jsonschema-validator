@@ -224,8 +224,9 @@ func (v *Validator) validate(value reflect.Value, fieldName string, tag *tag) er
 		return result
 	case reflect.Slice, reflect.Array:
 		result := newValidationError()
+		l := value.Len()
 		if tag != nil && (tag.minItems != nil || tag.maxItems != nil) {
-			l := int64(value.Len())
+			l := int64(l)
 			if tag.minItems != nil && l < *tag.minItems {
 				result.add(&ValidationError{
 					Message: fmt.Sprintf("minItems:%d", *tag.minItems),
@@ -240,7 +241,7 @@ func (v *Validator) validate(value reflect.Value, fieldName string, tag *tag) er
 			}
 		}
 		if tag != nil && tag.uniqueItems != nil && *tag.uniqueItems {
-			for i := 1; i < value.Len(); i++ {
+			for i := 1; i < l; i++ {
 				for j := 0; j < i; j++ {
 					if value.Index(i).Interface() == value.Index(j).Interface() {
 						result.add(&ValidationError{
@@ -251,7 +252,7 @@ func (v *Validator) validate(value reflect.Value, fieldName string, tag *tag) er
 				}
 			}
 		}
-		for i := 0; i < value.Len(); i++ {
+		for i := 0; i < l; i++ {
 			err := v.validate(value.Index(i), fmt.Sprintf("%s[%d]", fieldName, i), tag)
 			ret, ok := err.(*ValidationError)
 			if ok && ret != nil && !ret.isEmpty() {
