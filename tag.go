@@ -45,7 +45,8 @@ var (
 
 func newTag() *tag {
 	return &tag{
-		enum: []string{},
+		required: []string{},
+		enum:     []string{},
 	}
 }
 

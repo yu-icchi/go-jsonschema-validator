@@ -5,30 +5,232 @@ import (
 	"testing"
 )
 
-func TestValidator_Validate_String(t *testing.T) {
-	type String struct {
-		Str string `json:"str" jsonschema:"maxLength:5,pattern:^[a-z]+$"`
-	}
-	s := String{
-		Str: "1234567890",
+func TestValidator_Validate_Int_Minimum(t *testing.T) {
+	type Integer struct {
+		Num int `jsonschema:"minimum:5"`
 	}
 
 	validator := NewValidator()
-	err := validator.Validate(s)
-	assert.Error(t, err)
-	assert.Equal(t, "maxLength:5(10)pattern:^[a-z]+$(1234567890)", err.Error())
-}
 
-func TestValidator_Validate_Int(t *testing.T) {
-	type Integer struct {
-		Num int `json:"num" jsonschema:"minimum:5"`
-	}
+	// invalid
 	n := Integer{
 		Num: 4,
 	}
-
-	validator := NewValidator()
 	err := validator.Validate(n)
 	assert.Error(t, err)
 	assert.Equal(t, "minimum:5", err.Error())
+
+	// valid
+	n = Integer{
+		Num: 5,
+	}
+	err = validator.Validate(n)
+	assert.NoError(t, err)
+}
+
+func TestValidator_Validate_Int_Minimum_ExclusiveMinimum(t *testing.T) {
+	type Integer struct {
+		Num int `jsonschema:"minimum:5,exclusiveMinimum:true"`
+	}
+
+	validator := NewValidator()
+
+	// invalid
+	n := Integer{
+		Num: 5,
+	}
+	err := validator.Validate(n)
+	assert.Error(t, err)
+	assert.Equal(t, "exclusiveMinimum:5", err.Error())
+
+	// valid
+	n = Integer{
+		Num: 6,
+	}
+	err = validator.Validate(n)
+	assert.NoError(t, err)
+}
+
+func TestValidator_Validate_Int_ExclusiveMinimum(t *testing.T) {
+	type Integer struct {
+		Num int `jsonschema:"exclusiveMinimum:5"`
+	}
+
+	validator := NewValidator()
+
+	// invalid
+	n := Integer{
+		Num: 5,
+	}
+	err := validator.Validate(n)
+	assert.Error(t, err)
+	assert.Equal(t, "exclusiveMinimum:5", err.Error())
+
+	// valid
+	n = Integer{
+		Num: 6,
+	}
+	err = validator.Validate(n)
+	assert.NoError(t, err)
+}
+
+func TestValidator_Validate_Int_Maximum(t *testing.T) {
+	type Integer struct {
+		Num int `jsonschema:"maximum:5"`
+	}
+
+	validator := NewValidator()
+
+	// invalid
+	n := Integer{
+		Num: 6,
+	}
+	err := validator.Validate(n)
+	assert.Error(t, err)
+	assert.Equal(t, "maximum:5", err.Error())
+
+	// valid
+	n = Integer{
+		Num: 5,
+	}
+	err = validator.Validate(n)
+	assert.NoError(t, err)
+}
+
+func TestValidator_Validate_Int_Maximum_ExclusiveMaximum(t *testing.T) {
+	type Integer struct {
+		Num int `jsonschema:"maximum:5,exclusiveMaximum:true"`
+	}
+
+	validator := NewValidator()
+
+	// invalid
+	n := Integer{
+		Num: 5,
+	}
+	err := validator.Validate(n)
+	assert.Error(t, err)
+	assert.Equal(t, "exclusiveMaximum:5", err.Error())
+
+	// valid
+	n = Integer{
+		Num: 4,
+	}
+	err = validator.Validate(n)
+	assert.NoError(t, err)
+}
+
+func TestValidator_Validate_Int_ExclusiveMaximum(t *testing.T) {
+	type Integer struct {
+		Num int `jsonschema:"exclusiveMaximum:5"`
+	}
+
+	validator := NewValidator()
+
+	// invalid
+	n := Integer{
+		Num: 5,
+	}
+	err := validator.Validate(n)
+	assert.Error(t, err)
+	assert.Equal(t, "exclusiveMaximum:5", err.Error())
+
+	// valid
+	n = Integer{
+		Num: 4,
+	}
+	err = validator.Validate(n)
+	assert.NoError(t, err)
+}
+
+func TestValidator_Validate_Int_MultipleOf(t *testing.T) {
+	type Integer struct {
+		Num int `jsonschema:"multipleOf:5"`
+	}
+
+	validator := NewValidator()
+
+	// invalid
+	n := Integer{
+		Num: 4,
+	}
+	err := validator.Validate(n)
+	assert.Error(t, err)
+	assert.Equal(t, "multipleOf:5", err.Error())
+
+	// valid
+	n = Integer{
+		Num: 15,
+	}
+	err = validator.Validate(n)
+	assert.NoError(t, err)
+}
+
+func TestValidator_Validate_Float_MultipleOf(t *testing.T) {
+	type Integer struct {
+		Num float64 `jsonschema:"multipleOf:2.5"`
+	}
+
+	validator := NewValidator()
+
+	// invalid
+	n := Integer{
+		Num: 4,
+	}
+	err := validator.Validate(n)
+	assert.Error(t, err)
+	assert.Equal(t, "multipleOf:2.5", err.Error())
+
+	// valid
+	n = Integer{
+		Num: 7.5,
+	}
+	err = validator.Validate(n)
+	assert.NoError(t, err)
+}
+
+func TestValidator_Validate_String_MaxLength(t *testing.T) {
+	type String struct {
+		Str string `jsonschema:"maxLength:5"`
+	}
+
+	validator := NewValidator()
+
+	// invalid
+	s := String{
+		Str: "abcdef",
+	}
+	err := validator.Validate(s)
+	assert.Error(t, err)
+	assert.Equal(t, "maxLength:5(6)", err.Error())
+
+	// valid
+	s = String{
+		Str: "abcde",
+	}
+	err = validator.Validate(s)
+	assert.NoError(t, err)
+}
+
+func TestValidator_Validate_String_MinLength(t *testing.T) {
+	type String struct {
+		Str string `jsonschema:"minLength:3"`
+	}
+
+	validator := NewValidator()
+
+	// invalid
+	s := String{
+		Str: "ab",
+	}
+	err := validator.Validate(s)
+	assert.Error(t, err)
+	assert.Equal(t, "minLength:3(2)", err.Error())
+
+	// valid
+	s = String{
+		Str: "abc",
+	}
+	err = validator.Validate(s)
+	assert.NoError(t, err)
 }

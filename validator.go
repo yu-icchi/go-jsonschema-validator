@@ -137,12 +137,18 @@ func (v *Validator) Validate(data interface{}) error {
 		}
 
 		err = v.validate(value, name, tag)
+		if err == nil {
+			continue
+		}
 		ret, ok := err.(*ValidationError)
 		if ok && ret != nil && !ret.isEmpty() {
 			result.add(ret)
 		}
 	}
 
+	if result.isEmpty() {
+		return nil
+	}
 	return result
 }
 
