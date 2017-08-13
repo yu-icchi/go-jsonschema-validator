@@ -234,3 +234,118 @@ func TestValidator_Validate_String_MinLength(t *testing.T) {
 	err = validator.Validate(s)
 	assert.NoError(t, err)
 }
+
+func TestValidator_Validate_String_Pattern(t *testing.T) {
+	type String struct {
+		Str string `jsonschema:"pattern:[abc]+"`
+	}
+
+	validator := NewValidator()
+
+	// invalid
+	s := String{
+		Str: "def",
+	}
+	err := validator.Validate(s)
+	assert.Error(t, err)
+	assert.Equal(t, "pattern:[abc]+(def)", err.Error())
+
+	// valid
+	s = String{
+		Str: "abcd",
+	}
+	err = validator.Validate(s)
+	assert.NoError(t, err)
+}
+
+func TestValidator_Validate_String_Format(t *testing.T) {
+	type String struct {
+		Str string `jsonschema:"format:ipv4"`
+	}
+
+	validator := NewValidator()
+
+	// invalid
+	s := String{
+		Str: "abcd.adcd.adcd.abcd",
+	}
+	err := validator.Validate(s)
+	assert.Error(t, err)
+	assert.Equal(t, "", err.Error())
+
+	// valid
+	s = String{
+		Str: "192.168.1.1",
+	}
+	err = validator.Validate(s)
+	assert.NoError(t, err)
+}
+
+func TestValidator_Validate_Array_MaxItems(t *testing.T) {
+	type Sample struct {
+		Arr []int `jsonschema:"maxItems:3"`
+	}
+
+	validator := NewValidator()
+
+	// invalid
+	s := Sample{
+		Arr: []int{1, 2, 3, 4},
+	}
+	err := validator.Validate(s)
+	assert.Error(t, err)
+	assert.Equal(t, "maxItems:3", err.Error())
+
+	// valid
+	s = Sample{
+		Arr: []int{1, 2, 3},
+	}
+	err = validator.Validate(s)
+	assert.NoError(t, err)
+}
+
+func TestValidator_Validate_Array_MinItems(t *testing.T) {
+	type Sample struct {
+		Arr []int `jsonschema:"minItems:3"`
+	}
+
+	validator := NewValidator()
+
+	// invalid
+	s := Sample{
+		Arr: []int{1, 2},
+	}
+	err := validator.Validate(s)
+	assert.Error(t, err)
+	assert.Equal(t, "minItems:3", err.Error())
+
+	// valid
+	s = Sample{
+		Arr: []int{1, 2, 1},
+	}
+	err = validator.Validate(s)
+	assert.NoError(t, err)
+}
+
+func TestValidator_Validate_Array_UniqueItems(t *testing.T) {
+	type Sample struct {
+		Arr []int `jsonschema:"uniqueItems:true"`
+	}
+
+	validator := NewValidator()
+
+	// invalid
+	s := Sample{
+		Arr: []int{1, 2, 1},
+	}
+	err := validator.Validate(s)
+	assert.Error(t, err)
+	assert.Equal(t, "uniqueItems:true", err.Error())
+
+	// valid
+	s = Sample{
+		Arr: []int{1, 2, 3},
+	}
+	err = validator.Validate(s)
+	assert.NoError(t, err)
+}
