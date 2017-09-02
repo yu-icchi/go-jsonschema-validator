@@ -18,7 +18,7 @@ func TestValidator_Validate_Int_Minimum(t *testing.T) {
 	}
 	err := validator.Validate(n)
 	assert.Error(t, err)
-	assert.Equal(t, "minimum:5", err.Error())
+	assert.Equal(t, "Value 4 is less than minimum 5", err.Error())
 
 	// valid
 	n = Integer{
@@ -41,7 +41,7 @@ func TestValidator_Validate_Int_Minimum_ExclusiveMinimum(t *testing.T) {
 	}
 	err := validator.Validate(n)
 	assert.Error(t, err)
-	assert.Equal(t, "exclusiveMinimum:5", err.Error())
+	assert.Equal(t, "Value 5 is equal to exclusive minimum 5", err.Error())
 
 	// valid
 	n = Integer{
@@ -64,7 +64,7 @@ func TestValidator_Validate_Int_ExclusiveMinimum(t *testing.T) {
 	}
 	err := validator.Validate(n)
 	assert.Error(t, err)
-	assert.Equal(t, "exclusiveMinimum:5", err.Error())
+	assert.Equal(t, "Value 5 is equal to exclusive minimum 5", err.Error())
 
 	// valid
 	n = Integer{
@@ -87,7 +87,7 @@ func TestValidator_Validate_Int_Maximum(t *testing.T) {
 	}
 	err := validator.Validate(n)
 	assert.Error(t, err)
-	assert.Equal(t, "maximum:5", err.Error())
+	assert.Equal(t, "Value 6 is greater than maximum 5", err.Error())
 
 	// valid
 	n = Integer{
@@ -110,7 +110,7 @@ func TestValidator_Validate_Int_Maximum_ExclusiveMaximum(t *testing.T) {
 	}
 	err := validator.Validate(n)
 	assert.Error(t, err)
-	assert.Equal(t, "exclusiveMaximum:5", err.Error())
+	assert.Equal(t, "Value 5 is equal to exclusive maximum 5", err.Error())
 
 	// valid
 	n = Integer{
@@ -133,7 +133,7 @@ func TestValidator_Validate_Int_ExclusiveMaximum(t *testing.T) {
 	}
 	err := validator.Validate(n)
 	assert.Error(t, err)
-	assert.Equal(t, "exclusiveMaximum:5", err.Error())
+	assert.Equal(t, "Value 5 is equal to exclusive maximum 5", err.Error())
 
 	// valid
 	n = Integer{
@@ -156,11 +156,34 @@ func TestValidator_Validate_Int_MultipleOf(t *testing.T) {
 	}
 	err := validator.Validate(n)
 	assert.Error(t, err)
-	assert.Equal(t, "multipleOf:5", err.Error())
+	assert.Equal(t, "Value 4 is not a multiple of 5", err.Error())
 
 	// valid
 	n = Integer{
 		Num: 15,
+	}
+	err = validator.Validate(n)
+	assert.NoError(t, err)
+}
+
+func TestValidator_Validate_Int_Enum(t *testing.T) {
+	type Integer struct {
+		Num int `jsonschema:"enum:[1,2,3]"`
+	}
+
+	validator := NewValidator()
+
+	// invalid
+	n := Integer{
+		Num: 4,
+	}
+	err := validator.Validate(n)
+	assert.Error(t, err)
+	assert.Equal(t, "No enum match for: 4", err.Error())
+
+	// valid
+	n = Integer{
+		Num: 1,
 	}
 	err = validator.Validate(n)
 	assert.NoError(t, err)
@@ -179,7 +202,7 @@ func TestValidator_Validate_Float_MultipleOf(t *testing.T) {
 	}
 	err := validator.Validate(n)
 	assert.Error(t, err)
-	assert.Equal(t, "multipleOf:2.5", err.Error())
+	assert.Equal(t, "Value 4 is not a multiple of 2.5", err.Error())
 
 	// valid
 	n = Integer{
@@ -202,7 +225,7 @@ func TestValidator_Validate_String_MaxLength(t *testing.T) {
 	}
 	err := validator.Validate(s)
 	assert.Error(t, err)
-	assert.Equal(t, "maxLength:5(6)", err.Error())
+	assert.Equal(t, "String is too long (6 chars), maximum 5", err.Error())
 
 	// valid
 	s = String{
@@ -225,7 +248,7 @@ func TestValidator_Validate_String_MinLength(t *testing.T) {
 	}
 	err := validator.Validate(s)
 	assert.Error(t, err)
-	assert.Equal(t, "minLength:3(2)", err.Error())
+	assert.Equal(t, "String is too short (2 chars), minimum 3", err.Error())
 
 	// valid
 	s = String{
@@ -248,7 +271,7 @@ func TestValidator_Validate_String_Pattern(t *testing.T) {
 	}
 	err := validator.Validate(s)
 	assert.Error(t, err)
-	assert.Equal(t, "pattern:[abc]+(def)", err.Error())
+	assert.Equal(t, "String does not match pattern: [abc]+", err.Error())
 
 	// valid
 	s = String{
@@ -258,24 +281,48 @@ func TestValidator_Validate_String_Pattern(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestValidator_Validate_String_Format(t *testing.T) {
+func TestValidator_Validate_String_Enum(t *testing.T) {
 	type String struct {
-		Str string `jsonschema:"format:ipv4"`
+		Str string `jsonschema:"enum:[a,b,c,d]"`
 	}
 
 	validator := NewValidator()
 
 	// invalid
 	s := String{
-		Str: "abcd.adcd.adcd.abcd",
+		Str: "f",
 	}
 	err := validator.Validate(s)
 	assert.Error(t, err)
-	assert.Equal(t, "", err.Error())
+	assert.Equal(t, "No enum match for: f", err.Error())
 
 	// valid
 	s = String{
-		Str: "192.168.1.1",
+		Str: "a",
+	}
+	err = validator.Validate(s)
+	assert.NoError(t, err)
+}
+
+func TestValidator_Validate_String_Format(t *testing.T) {
+	type IP string
+	type String struct {
+		Str IP `json:"str" jsonschema:"format:ipv4"`
+	}
+
+	validator := NewValidator()
+
+	// invalid
+	s := String{
+		Str: IP("abcd.adcd.adcd.abcd"),
+	}
+	err := validator.Validate(s)
+	assert.Error(t, err)
+	assert.Equal(t, "Format validation failed ()", err.Error())
+
+	// valid
+	s = String{
+		Str: IP("192.168.1.1"),
 	}
 	err = validator.Validate(s)
 	assert.NoError(t, err)
@@ -294,7 +341,7 @@ func TestValidator_Validate_Array_MaxItems(t *testing.T) {
 	}
 	err := validator.Validate(s)
 	assert.Error(t, err)
-	assert.Equal(t, "maxItems:3", err.Error())
+	assert.Equal(t, "Array is too long (4), maximum 3", err.Error())
 
 	// valid
 	s = Sample{
@@ -317,7 +364,7 @@ func TestValidator_Validate_Array_MinItems(t *testing.T) {
 	}
 	err := validator.Validate(s)
 	assert.Error(t, err)
-	assert.Equal(t, "minItems:3", err.Error())
+	assert.Equal(t, "Array is too short (2), minimum 3", err.Error())
 
 	// valid
 	s = Sample{
@@ -340,11 +387,56 @@ func TestValidator_Validate_Array_UniqueItems(t *testing.T) {
 	}
 	err := validator.Validate(s)
 	assert.Error(t, err)
-	assert.Equal(t, "uniqueItems:true", err.Error())
+	assert.Equal(t, "Array items are not unique (indices 2 and 0)", err.Error())
 
 	// valid
 	s = Sample{
 		Arr: []int{1, 2, 3},
+	}
+	err = validator.Validate(s)
+	assert.NoError(t, err)
+}
+
+func TestValidator_Validate_Array_UniqueItems_Struct(t *testing.T) {
+	type SampleType struct {
+		ID  string
+		Num int
+	}
+	type Sample struct {
+		Arr []SampleType `jsonschema:"uniqueItems:true"`
+	}
+
+	validator := NewValidator()
+
+	// invalid
+	s := Sample{
+		Arr: []SampleType{
+			{
+				ID:  "aaa",
+				Num: 1,
+			},
+			{
+				ID:  "aaa",
+				Num: 1,
+			},
+		},
+	}
+	err := validator.Validate(s)
+	assert.Error(t, err)
+	assert.Equal(t, "Array items are not unique (indices 1 and 0)", err.Error())
+
+	// valid
+	s = Sample{
+		Arr: []SampleType{
+			{
+				ID:  "aaa",
+				Num: 0,
+			},
+			{
+				ID:  "aaa",
+				Num: 1,
+			},
+		},
 	}
 	err = validator.Validate(s)
 	assert.NoError(t, err)
@@ -367,7 +459,7 @@ func TestValidator_Validate_Map_MaxProperties(t *testing.T) {
 	}
 	err := validator.Validate(s)
 	assert.Error(t, err)
-	assert.Equal(t, "maxProperties:2", err.Error())
+	assert.Equal(t, "Too many properties defined (3), maximum 2", err.Error())
 
 	// valid
 	s = Sample{
@@ -395,7 +487,7 @@ func TestValidator_Validate_Map_MinProperties(t *testing.T) {
 	}
 	err := validator.Validate(s)
 	assert.Error(t, err)
-	assert.Equal(t, "minProperties:2", err.Error())
+	assert.Equal(t, "Too few properties defined (1), minimum 2", err.Error())
 
 	// valid
 	s = Sample{
@@ -425,7 +517,7 @@ func TestValidator_Validate_Map_Required(t *testing.T) {
 	}
 	err := validator.Validate(s)
 	assert.Error(t, err)
-	assert.Equal(t, "required", err.Error())
+	assert.Equal(t, "Missing required property: [a b c]", err.Error())
 
 	// valid
 	s = Sample{
@@ -456,7 +548,7 @@ func TestValidator_Validate_Map_PatternProperties(t *testing.T) {
 	}
 	err := validator.Validate(s)
 	assert.Error(t, err)
-	assert.Equal(t, "patternProperties:^id-+", err.Error())
+	assert.Equal(t, "Properties does not match pattern: ^id-+", err.Error())
 
 	// valid
 	s = Sample{

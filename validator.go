@@ -61,7 +61,7 @@ func NewValidator() *Validator {
 	return &Validator{
 		formats: map[string]ValidateFunc{
 			// Defined formats
-			"date-time":     dataTime,
+			"date-time":     dateTime,
 			"email":         email,
 			"hostname":      hostname,
 			"ipv4":          ipv4,
@@ -75,7 +75,7 @@ func NewValidator() *Validator {
 }
 
 // ValidateFunc -
-type ValidateFunc func(data string) error
+type ValidateFunc func(data *reflect.Value, field *reflect.StructField) error
 
 // Validator -
 type Validator struct {
@@ -94,12 +94,12 @@ func (v *Validator) AddFormat(key string, f ValidateFunc) error {
 	return nil
 }
 
-func (v *Validator) execFormat(key, value string) error {
+func (v *Validator) execFormat(key string, value *reflect.Value, field *reflect.StructField) error {
 	f, ok := v.formats[key]
 	if !ok {
 		return errors.New("")
 	}
-	return f(value)
+	return f(value, field)
 }
 
 // Validate -
@@ -136,6 +136,15 @@ func (v *Validator) Validate(data interface{}) error {
 			value = value.Elem()
 		}
 
+		if tag != nil && tag.format != nil {
+			if e := v.execFormat(*tag.format, &value, &field); e != nil {
+				result.add(&ValidationError{
+					Message: fmt.Sprintf("Format validation failed (%s)", e.Error()),
+					Name:    name,
+				})
+			}
+		}
+
 		err = v.validate(value, name, tag)
 		if err == nil {
 			continue
@@ -169,13 +178,13 @@ func (v *Validator) validate(value reflect.Value, fieldName string, tag *tag) er
 			l := int64(value.Len())
 			if tag.minProperties != nil && l < *tag.minProperties {
 				result.add(&ValidationError{
-					Message: fmt.Sprintf("minProperties:%d", *tag.minProperties),
+					Message: fmt.Sprintf("Too few properties defined (%d), minimum %d", l, *tag.minProperties),
 					Name:    fieldName,
 				})
 			}
 			if tag.maxProperties != nil && l > *tag.maxProperties {
 				result.add(&ValidationError{
-					Message: fmt.Sprintf("maxProperties:%d", *tag.maxProperties),
+					Message: fmt.Sprintf("Too many properties defined (%d), maximum %d", l, *tag.maxProperties),
 					Name:    fieldName,
 				})
 			}
@@ -190,7 +199,7 @@ func (v *Validator) validate(value reflect.Value, fieldName string, tag *tag) er
 			}
 			if len(missing) > 0 {
 				result.add(&ValidationError{
-					Message: "required",
+					Message: fmt.Sprintf("Missing required property: %v", tag.required),
 					Name:    fieldName,
 				})
 			}
@@ -198,7 +207,7 @@ func (v *Validator) validate(value reflect.Value, fieldName string, tag *tag) er
 		for _, key := range value.MapKeys() {
 			if tag != nil && tag.patternProperties != nil && !tag.patternProperties.MatchString(toString(key)) {
 				result.add(&ValidationError{
-					Message: fmt.Sprintf("patternProperties:%s", tag.patternProperties.String()),
+					Message: fmt.Sprintf("Properties does not match pattern: %s", tag.patternProperties.String()),
 					Name:    fieldName,
 				})
 			}
@@ -229,13 +238,13 @@ func (v *Validator) validate(value reflect.Value, fieldName string, tag *tag) er
 			l := int64(l)
 			if tag.minItems != nil && l < *tag.minItems {
 				result.add(&ValidationError{
-					Message: fmt.Sprintf("minItems:%d", *tag.minItems),
+					Message: fmt.Sprintf("Array is too short (%d), minimum %d", l, *tag.minItems),
 					Name:    fieldName,
 				})
 			}
 			if tag.maxItems != nil && l > *tag.maxItems {
 				result.add(&ValidationError{
-					Message: fmt.Sprintf("maxItems:%d", *tag.maxItems),
+					Message: fmt.Sprintf("Array is too long (%d), maximum %d", l, *tag.maxItems),
 					Name:    fieldName,
 				})
 			}
@@ -245,13 +254,14 @@ func (v *Validator) validate(value reflect.Value, fieldName string, tag *tag) er
 				for j := 0; j < i; j++ {
 					if value.Index(i).Interface() == value.Index(j).Interface() {
 						result.add(&ValidationError{
-							Message: "uniqueItems:true",
+							Message: fmt.Sprintf("Array items are not unique (indices %d and %d)", i, j),
 							Name:    fieldName,
 						})
 					}
 				}
 			}
 		}
+		// todo... contains tag
 		for i := 0; i < l; i++ {
 			err := v.validate(value.Index(i), fmt.Sprintf("%s[%d]", fieldName, i), tag)
 			ret, ok := err.(*ValidationError)
@@ -298,34 +308,26 @@ func (v *Validator) validateString(str, fieldName string, tag *tag) *ValidationE
 		l := int64(utf8.RuneCountInString(str))
 		if tag.minLength != nil && l < *tag.minLength {
 			ret.add(&ValidationError{
-				Message: fmt.Sprintf("minLength:%d(%d)", *tag.minLength, l),
+				Message: fmt.Sprintf("String is too short (%d chars), minimum %d", l, *tag.minLength),
 				Name:    fieldName,
 			})
 		}
 		if tag.maxLength != nil && l > *tag.maxLength {
 			ret.add(&ValidationError{
-				Message: fmt.Sprintf("maxLength:%d(%d)", *tag.maxLength, l),
+				Message: fmt.Sprintf("String is too long (%d chars), maximum %d", l, *tag.maxLength),
 				Name:    fieldName,
 			})
 		}
 	}
 	if tag != nil && tag.pattern != nil && !tag.pattern.MatchString(str) {
 		ret.add(&ValidationError{
-			Message: fmt.Sprintf("pattern:%s(%s)", tag.pattern.String(), str),
+			Message: fmt.Sprintf("String does not match pattern: %s", tag.pattern.String()),
 			Name:    fieldName,
 		})
 	}
-	if tag != nil && tag.format != nil {
-		if e := v.execFormat(*tag.format, str); e != nil {
-			ret.add(&ValidationError{
-				Message: e.Error(),
-				Name:    fieldName,
-			})
-		}
-	}
 	if tag != nil && len(tag.enum) > 0 && !contains(tag.enum, str) {
 		ret.add(&ValidationError{
-			Message: "enum",
+			Message: fmt.Sprintf("No enum match for: %s", str),
 			Name:    fieldName,
 		})
 	}
@@ -337,47 +339,47 @@ func (v *Validator) validateNumber(num *big.Float, fieldName string, tag *tag) *
 	if tag != nil && tag.minimum != nil {
 		if tag.exclusiveMinimumD4 != nil && *tag.exclusiveMinimumD4 && num.Cmp(tag.minimum) <= 0 {
 			ret.add(&ValidationError{
-				Message: fmt.Sprintf("exclusiveMinimum:%s", tag.minimum.String()),
+				Message: fmt.Sprintf("Value %s is equal to exclusive minimum %s", num.String(), tag.minimum.String()),
 				Name:    fieldName,
 			})
 		}
 		if num.Cmp(tag.minimum) < 0 {
 			ret.add(&ValidationError{
-				Message: fmt.Sprintf("minimum:%s", tag.minimum.String()),
+				Message: fmt.Sprintf("Value %s is less than minimum %s", num.String(), tag.minimum.String()),
 				Name:    fieldName,
 			})
 		}
 	}
 	if tag != nil && tag.exclusiveMinimumD6 != nil && num.Cmp(tag.exclusiveMinimumD6) <= 0 {
 		ret.add(&ValidationError{
-			Message: fmt.Sprintf("exclusiveMinimum:%s", tag.exclusiveMinimumD6.String()),
+			Message: fmt.Sprintf("Value %s is equal to exclusive minimum %s", num.String(), tag.exclusiveMinimumD6.String()),
 			Name:    fieldName,
 		})
 	}
 	if tag != nil && tag.maximum != nil {
 		if tag.exclusiveMaximumD4 != nil && *tag.exclusiveMaximumD4 && num.Cmp(tag.maximum) >= 0 {
 			ret.add(&ValidationError{
-				Message: fmt.Sprintf("exclusiveMaximum:%s", tag.maximum.String()),
+				Message: fmt.Sprintf("Value %s is equal to exclusive maximum %s", num.String(), tag.maximum.String()),
 				Name:    fieldName,
 			})
 		}
 		if num.Cmp(tag.maximum) > 0 {
 			ret.add(&ValidationError{
-				Message: fmt.Sprintf("maximum:%s", tag.maximum.String()),
+				Message: fmt.Sprintf("Value %s is greater than maximum %s", num.String(), tag.maximum.String()),
 				Name:    fieldName,
 			})
 		}
 	}
 	if tag != nil && tag.exclusiveMaximumD6 != nil && num.Cmp(tag.exclusiveMaximumD6) >= 0 {
 		ret.add(&ValidationError{
-			Message: fmt.Sprintf("exclusiveMaximum:%s", tag.exclusiveMaximumD6.String()),
+			Message: fmt.Sprintf("Value %s is equal to exclusive maximum %s", num.String(), tag.exclusiveMaximumD6.String()),
 			Name:    fieldName,
 		})
 	}
 	if tag != nil && tag.multipleOf != nil {
 		if m := new(big.Float).Quo(num, tag.multipleOf); !m.IsInt() {
 			ret.add(&ValidationError{
-				Message: fmt.Sprintf("multipleOf:%s", tag.multipleOf.String()),
+				Message: fmt.Sprintf("Value %s is not a multiple of %s", num.String(), tag.multipleOf.String()),
 				Name:    fieldName,
 			})
 		}
@@ -385,7 +387,7 @@ func (v *Validator) validateNumber(num *big.Float, fieldName string, tag *tag) *
 	if tag != nil && len(tag.enum) > 0 {
 		if !contains(tag.enum, num.String()) {
 			ret.add(&ValidationError{
-				Message: "enum",
+				Message: fmt.Sprintf("No enum match for: %s", num.String()),
 				Name:    fieldName,
 			})
 		}

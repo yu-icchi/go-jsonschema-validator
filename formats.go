@@ -5,11 +5,16 @@ import (
 	"net"
 	"net/mail"
 	"net/url"
+	"reflect"
 	"strings"
 	"time"
 )
 
-func dataTime(data string) error {
+func dateTime(value *reflect.Value, field *reflect.StructField) error {
+	if value.Kind() != reflect.String {
+		return errors.New("format/dateTime: invalid value kind")
+	}
+	data := value.String()
 	if _, err := time.Parse(time.RFC3339, data); err != nil {
 		return err
 	}
@@ -19,7 +24,11 @@ func dataTime(data string) error {
 	return nil
 }
 
-func email(data string) error {
+func email(value *reflect.Value, field *reflect.StructField) error {
+	if value.Kind() != reflect.String {
+		return errors.New("format/email: invalid value kind")
+	}
+	data := value.String()
 	if len(data) > 254 {
 		return errors.New("")
 	}
@@ -28,18 +37,39 @@ func email(data string) error {
 		return errors.New("")
 	}
 	local := data[0:at]
-	domain := data[at+1:]
 	if len(local) > 64 {
 		return errors.New("")
 	}
-	if err := hostname(domain); err != nil {
-		return err
+	domain := data[at+1:]
+	domain = strings.TrimSuffix(domain, ".")
+	if len(domain) > 253 {
+		return errors.New("")
+	}
+	for _, label := range strings.Split(domain, ".") {
+		if l := len(label); l < 1 || l > 63 {
+			return errors.New("")
+		}
+		if f := domain[0]; f >= '0' && f <= '9' || f == '-' {
+			return errors.New("")
+		}
+		if label[len(label)-1] == '-' {
+			return errors.New("")
+		}
+		for _, c := range label {
+			if valid := c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '-'; !valid {
+				return errors.New("")
+			}
+		}
 	}
 	_, err := mail.ParseAddress(data)
 	return err
 }
 
-func hostname(data string) error {
+func hostname(value *reflect.Value, field *reflect.StructField) error {
+	if value.Kind() != reflect.String {
+		return errors.New("format/hostname: invalid value kind")
+	}
+	data := value.String()
 	data = strings.TrimSuffix(data, ".")
 	if len(data) > 253 {
 		return errors.New("")
@@ -63,7 +93,11 @@ func hostname(data string) error {
 	return nil
 }
 
-func ipv4(data string) error {
+func ipv4(value *reflect.Value, field *reflect.StructField) error {
+	if value.Kind() != reflect.String {
+		return errors.New("format/ipv4: invalid value kind")
+	}
+	data := value.String()
 	if g := strings.Split(data, "."); len(g) != 4 {
 		return errors.New("")
 	}
@@ -73,7 +107,11 @@ func ipv4(data string) error {
 	return nil
 }
 
-func ipv6(data string) error {
+func ipv6(value *reflect.Value, field *reflect.StructField) error {
+	if value.Kind() != reflect.String {
+		return errors.New("format/ipv6: invalid value kind")
+	}
+	data := value.String()
 	if !strings.Contains(data, ":") {
 		return errors.New("")
 	}
@@ -83,7 +121,11 @@ func ipv6(data string) error {
 	return nil
 }
 
-func uri(data string) error {
+func uri(value *reflect.Value, field *reflect.StructField) error {
+	if value.Kind() != reflect.String {
+		return errors.New("format/url: invalid value kind")
+	}
+	data := value.String()
 	u, err := url.Parse(data)
 	if err != nil {
 		return err
@@ -94,12 +136,20 @@ func uri(data string) error {
 	return nil
 }
 
-func uriReference(data string) error {
+func uriReference(value *reflect.Value, field *reflect.StructField) error {
+	if value.Kind() != reflect.String {
+		return errors.New("format/uriReference: invalid value kind")
+	}
+	data := value.String()
 	_, err := url.Parse(data)
 	return err
 }
 
-func jsonPointer(data string) error {
+func jsonPointer(value *reflect.Value, field *reflect.StructField) error {
+	if value.Kind() != reflect.String {
+		return errors.New("format/jsonPointer: invalid value kind")
+	}
+	data := value.String()
 	for _, item := range strings.Split(data, "/") {
 		for i := 0; i < len(item); i++ {
 			if item[i] == '~' {

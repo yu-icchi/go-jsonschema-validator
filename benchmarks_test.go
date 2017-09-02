@@ -2,13 +2,15 @@ package jsonschema
 
 import "testing"
 
+type ID string
+
 type Benchmark struct {
-	Name string `json:"name" jsonschema:"maxLength:5,pattern:^[0-8]+$"`
+	Name ID `json:"name" jsonschema:"maxLength:5,pattern:^[0-8]+$"`
 }
 
 func BenchmarkValidator_Validate(b *testing.B) {
 	bench := &Benchmark{
-		Name: "1234567890",
+		Name: ID("1234567890"),
 	}
 
 	b.ResetTimer()

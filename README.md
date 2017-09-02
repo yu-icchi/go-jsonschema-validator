@@ -16,7 +16,7 @@ sample := Sample{
 }
 
 validator := jsonschema.NewValidator()
-validator.AddFormat("my-format", func(data interface{}) (err error) {
+validator.AddFormat("my-format", func(value *reflect.Value, field *reflect.StructField) (err error) {
 	...
 	return
 })
